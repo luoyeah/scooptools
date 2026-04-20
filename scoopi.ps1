@@ -15,7 +15,49 @@ function parse_json($path) {
     }
 }
 
+function Get-AbsolutePath {
+    <#
+    .SYNOPSIS
+        Get absolute path
+    .DESCRIPTION
+        Get absolute path, even if not existed
+    .PARAMETER Path
+        Path to manipulate
+    .OUTPUTS
+        System.String
+            Absolute path, may or maynot existed
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [string]
+        $Path
+    )
+    process {
+        return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+    }
+}
+# 获取缓存路径
+function get_cache_path($app, $version, $url) {
+    # 缓存文件夹
+    $cachedir = $env:SCOOP_CACHE, "$scoopdir\cache" | Where-Object { $_ } | Select-Object -First 1 | Get-AbsolutePath
 
+    $underscoredUrl = $url -replace '[^\w\.\-]+', '_'
+    $filePath = Join-Path $cachedir "$app#$version#$underscoredUrl"
+
+    # NOTE: Scoop cache files migration. Remove this 6 months after the feature ships.
+    if (Test-Path $filePath) {
+        return $filePath
+    }
+
+    $urlStream = [System.IO.MemoryStream]::new([System.Text.Encoding]::UTF8.GetBytes($url))
+    $sha = (Get-FileHash -Algorithm SHA256 -InputStream $urlStream).Hash.ToLower().Substring(0, 7)
+    $extension = [System.IO.Path]::GetExtension($url)
+    $filePath = $filePath -replace "$underscoredUrl", "$sha$extension"
+
+    return $filePath
+}
 function parse_manifest($InputFile){
     $InputFile =  Convert-Path -Path $InputFile
     # 获取输入文件的目录路径作为基准路径
@@ -77,6 +119,8 @@ function parse_manifest($InputFile){
 		Write-Error "'url文件不存在：'$absolutePath"
 		exit 1
 	}
+
+    $nofragmentPath = $absolutePath
 	
 	# 重新附加片段（如果有）
 	if ($fragmentPart) {
@@ -87,8 +131,7 @@ function parse_manifest($InputFile){
 	
 	Write-Verbose "已将URL从 '$urlValue' 转换为 '$absolutePath'" -Verbose
 
-
-    
+    ## 写入到临时文件
     # 创建临时文件夹
     $tempDir = [System.IO.Path]::GetTempPath()
     $tempSubDir = Join-Path $tempDir "scoop_manifest_temp"
@@ -108,6 +151,20 @@ function parse_manifest($InputFile){
     
     Write-Host "处理成功！文件已保存到:" -ForegroundColor Green
     Write-Host $outputFile -ForegroundColor Cyan
+
+
+    ## 复制到缓存(加快安装进度)
+    # 获取app名称
+    $app_name = [System.IO.Path]::GetFileNameWithoutExtension($InputFile)
+    
+    # 获取目标缓存路径
+    $cache_path = get_cache_path $app_name $jsonObject.version $jsonObject.url
+
+    if(-not (Test-Path($cache_path))){
+        Copy-Item -Path $nofragmentPath -Destination $cache_path
+        Write-Host "已复制到缓存:" -ForegroundColor Green
+        Write-Host "$nofragmentPath -> $cache_path" -ForegroundColor Cyan
+    }
     
     # 返回输出文件路径
     $outputFile
