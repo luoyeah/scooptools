@@ -33,7 +33,7 @@ Set-Location $scoop_path
 7z u -mmt8 -mx1 "$backup_file" "buckets/main" "buckets/extras" "buckets/versions" '-xr!.git' '-xr!*.vscode' '-xr!*.github'
 
 # 备份mybucket
-7z u -mmt8 -mx1 "$backup_file" "buckets/mybucket" '-xr!.git' '-xr!*.vscode' '-xr!*.github'
+# 7z u -mmt8 -mx1 "$backup_file" "buckets/mybucket" '-xr!.git' '-xr!*.vscode' '-xr!*.github'
 
 
 

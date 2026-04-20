@@ -73,7 +73,6 @@ scoop install extras/bulk-crap-uninstaller fastcopy
 ## 4 自定义命令
 
 * scoopb - 备份scoop
-* scoopr - 还原scoop
 * scoopi - 修复清单文件相对路径再安装
   
 
