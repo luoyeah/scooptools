@@ -260,7 +260,7 @@ function Get-TempManifest {
     $basePath = Split-Path $InputFile -Parent
     
     # 如果是远程 URL，无需处理
-    if ($urlValue -match '^(http|https|ftp)://') {
+    if ($urlValue -match '^(http|https|ftp|file)://') {
         return $null
     }
     
@@ -371,8 +371,6 @@ try {
         "0"
     }
     
-    Copy-LocalFileToCache -JsonObject $jsonObject -AppName $appName -Version $version
-    
     # 创建临时清单（处理相对路径）
     $tempManifest = Get-TempManifest -InputFile $manifestFile -JsonObject $jsonObject
 
@@ -380,7 +378,9 @@ try {
     if ($tempManifest) {
         $tempJsonObject = Parse-Json -Path $tempManifest
         Copy-LocalFileToCache -JsonObject $tempJsonObject -AppName $appName -Version $version
-    }
+    }else{
+		Copy-LocalFileToCache -JsonObject $jsonObject -AppName $appName -Version $version
+	}
 
     # 确定安装时使用的清单路径
     $installPath = if ($tempManifest) { $tempManifest } else { $manifestFile }
