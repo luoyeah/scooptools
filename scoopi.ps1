@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     修复 Scoop 清单并安装
 
@@ -306,6 +306,24 @@ function Remove-TempManifest {
     }
 }
 
+function Copy-LocalFileToCache {
+    param(
+        [object]$JsonObject,
+        [string]$AppName,
+        [string]$Version
+    )
+    
+    if ($JsonObject -and $JsonObject.PSObject.Properties['url'] -and $JsonObject.url -match '^file:///.+') {
+        $localPath = $JsonObject.url -replace '^file:///', ''
+        $localPath = $localPath -replace '#.+$', ''
+        $localPath = [System.IO.Path]::GetFullPath($localPath)
+        
+        if (Test-Path $localPath) {
+            Copy-ToCache -SourcePath $localPath -AppName $AppName -Version $Version -Url $JsonObject.url
+        }
+    }
+}
+
 <#
 .SYNOPSIS
     使用 Scoop 安装清单
@@ -353,17 +371,7 @@ try {
         "0"
     }
     
-    # 如果 URL 指向本地文件，先复制到缓存目录
-    if ($jsonObject.PSObject.Properties['url'] -and $jsonObject.url -match '^file:///.+') {
-        $localPath = $jsonObject.url -replace '^file:///', ''
-        # 去除 # 片段
-        $localPath = $localPath -replace '#.+$', ''
-        $localPath = [System.IO.Path]::GetFullPath($localPath)
-        
-        if (Test-Path $localPath) {
-            Copy-ToCache -SourcePath $localPath -AppName $appName -Version $version -Url $jsonObject.url
-        }
-    }
+    Copy-LocalFileToCache -JsonObject $jsonObject -AppName $appName -Version $version
     
     # 创建临时清单（处理相对路径）
     $tempManifest = Get-TempManifest -InputFile $manifestFile -JsonObject $jsonObject
@@ -371,14 +379,7 @@ try {
     # 如果创建了临时清单，从临时清单获取需要复制的本地文件路径
     if ($tempManifest) {
         $tempJsonObject = Parse-Json -Path $tempManifest
-        if ($tempJsonObject -and $tempJsonObject.PSObject.Properties['url'] -and $tempJsonObject.url -match '^file:///.+') {
-            $localPath = $tempJsonObject.url -replace '^file:///', ''
-            $localPath = $localPath -replace '#.+$', ''
-            $localPath = [System.IO.Path]::GetFullPath($localPath)
-            if (Test-Path $localPath) {
-                Copy-ToCache -SourcePath $localPath -AppName $appName -Version $version -Url $tempJsonObject.url
-            }
-        }
+        Copy-LocalFileToCache -JsonObject $tempJsonObject -AppName $appName -Version $version
     }
 
     # 确定安装时使用的清单路径
