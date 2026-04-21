@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     修复 Scoop 清单并安装
 
