@@ -69,13 +69,13 @@ foreach($url in $urls){
     $local_file = UriToFilePath -Uri $url -BaseDir $manifest_dir
 
     if(-not (Test-Path $local_file)){
-        Write-Host "File Not exist: $local_file"
+        Write-Host "Url file not exist: $local_file"
     }else{
         if(!(Test-Path $cache_file)){
             Write-Host "Copy $local_file -> $cache_file"
             Copy-Item -Path $local_file -Destination $cache_file -Force
         }else{
-            Write-Host "Exist $cache_file"
+            Write-Host "File Exist $cache_file"
         }
     }
 }
