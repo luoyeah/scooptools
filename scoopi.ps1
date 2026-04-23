@@ -68,15 +68,16 @@ foreach($url in $urls){
     # url对于本地名称
     $local_file = UriToFilePath -Uri $url -BaseDir $manifest_dir
 
-    if(-not (Test-Path $local_file)){
-        Write-Host "Url file not exist: $local_file"
-    }else{
-        if(!(Test-Path $cache_file)){
-            Write-Host "Copy $local_file -> $cache_file"
-            Copy-Item -Path $local_file -Destination $cache_file -Force
+    if(-not (Test-Path $cache_file)){
+        if(-not (Test-Path $local_file)){
+            Write-Host "[scoopi]: URL File Not Exist: $local_file"
         }else{
-            Write-Host "File Exist $cache_file"
+            Write-Host "[scoopi]: Copy To Cache: $local_file -> $cache_file"
+            Copy-Item -Path $local_file -Destination $cache_file -Force
         }
+        # New-Item -ItemType SymbolicLink -Path $cache_file -Target $local_file | Out-Null
+    }else{
+        Write-Host "[scoopi]: Cache File Exist: $cache_file"
     }
 }
 
