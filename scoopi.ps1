@@ -243,7 +243,7 @@ function Main($ManifestFile){
         # 判断是否解析成功
         if(-not $local_file){
             Write-Host "[scoopi]url解析失败： $url"
-            Write-Host "[scoopi]请手动下载到缓存文件：$cache_file"
+            Write-Host "[scoopi]请手动下载到缓存文件： $cache_file"
             Write-Host ""
             continue
         }
