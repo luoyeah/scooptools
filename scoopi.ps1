@@ -9,8 +9,8 @@
 .PARAMETER File
     清单文件路径 (.json)，可以是相对路径或绝对路径
 
-.PARAMETER Test
-    测试模式
+.PARAMETER Inst
+    安装模式（默认不安装）
 
 .EXAMPLE
     .\scoopi.ps1 .\myapp.json
@@ -20,8 +20,8 @@
 param(
     [Parameter(Mandatory=$true, Position=0, HelpMessage="清单文件路径")]
     [string]$File,
-    [Parameter(Mandatory=$false, Position=1, HelpMessage="测试模式")]
-    [switch]$Test
+    [Parameter(Mandatory=$false, Position=1, HelpMessage="安装模式")]
+    [switch]$Inst
 )
 # 启用严格模式确保变量在使用前被初始化
 # Set-StrictMode -Version Latest
@@ -277,7 +277,7 @@ function Main($ManifestFile){
 
 Main $File
 
-if(-not $Test){
+if($Inst){
     & scoop install -u $File    
 }
 
