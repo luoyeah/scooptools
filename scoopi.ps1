@@ -25,7 +25,28 @@ param(
 $ErrorActionPreference = "Stop"
 
 
-# ----------------从scoop源代码复制------------------------------------------------
+# ----------------从scoop复制代码------------------------------------------------
+$configHome = $env:XDG_CONFIG_HOME, "$env:USERPROFILE\.config" | Select-Object -First 1
+$configFile = "$configHome\scoop\config.json"
+
+function load_cfg($file) {
+    if(!(Test-Path $file)) {
+        return $null
+    }
+
+    try {
+        # ReadAllLines will detect the encoding of the file automatically
+        # Ref: https://docs.microsoft.com/en-us/dotnet/api/system.io.file.readalllines?view=netframework-4.5
+        $content = [System.IO.File]::ReadAllLines($file)
+        return ($content | ConvertFrom-Json -ErrorAction Stop)
+    } catch {
+        Write-Host "ERROR loading $file`: $($_.exception.message)"
+    }
+}
+
+$scoopConfig = load_cfg $configFile
+
+
 function get_config($name, $default) {
     $name = $name.ToLowerInvariant()
     if ($null -eq $scoopConfig.$name -and $null -ne $default) {
@@ -113,11 +134,11 @@ function url($manifest, $arch) { arch_specific 'url' $manifest $arch }
 
 
 
-# ----------------从scoop源代码复制 结束------------------------------------------------
+# ----------------从scoop复制代码 结束------------------------------------------------
 
 
 # 将 file:// 格式的 URI 转换为本地文件路径
-function UriToFilePath($Url, $BaseDir) {
+function UriToFilePath($Uri, $BaseDir) {
 
     # 检查是否为 file:// 协议
     if ($Uri -notmatch '^file://') {
@@ -161,7 +182,7 @@ function UriToFilePath($Url, $BaseDir) {
     return $path
 }
 
-function Parse-Json($path) {
+function ParseJson($path) {
     # 检查文件是否存在
     if (-not (Test-Path $path)) {
         Write-Error "文件未找到: $Path"
@@ -192,7 +213,7 @@ function Main($ManifestFile){
     $manifest_dir = Split-Path -Parent $ManifestFile
 
     # 解析 JSON 内容
-    $manifest = Parse-Json -Path $ManifestFile
+    $manifest = ParseJson -Path $ManifestFile
 
     if ($null -eq $manifest) {
         throw "清单解析失败"
@@ -217,18 +238,30 @@ function Main($ManifestFile){
         $cache_file = cache_path $appName $version $url
 
         # url对于本地名称
-        $local_file = UriToFilePath -Uri $url -BaseDir $manifest_dir
+        $local_file = UriToFilePath $url $manifest_dir
 
-        if(-not (Test-Path $cache_file)){
-            if(-not (Test-Path $local_file)){
-                Write-Host "[scoopi]: URL File Not Exist: $local_file"
-            }else{
-                Write-Host "[scoopi]: Copy To Cache: $local_file -> $cache_file"
-                Copy-Item -Path $local_file -Destination $cache_file -Force
-            }
-            # New-Item -ItemType SymbolicLink -Path $cache_file -Target $local_file | Out-Null
+        # 判断是否解析成功
+        if(-not $local_file){
+            Write-Host "[scoopi]url解析失败： $url"
+            Write-Host "[scoopi]请手动下载到缓存文件：$cache_file"
+            Write-Host ""
+            continue
+        }
+        
+        Write-Host "[scoopi]url解析成功: $url -> $local_file"
+
+        if(Test-Path $cache_file){
+            Write-Host "[scoopi]缓存文件已存在: $cache_file"
+            continue
+        }
+
+        Write-Host "[scoopi]缓存文件不存在: $cache_file"
+
+        if(-not (Test-Path $local_file)){
+            Write-Host "[scoopi]url对应本地文件不存在: $local_file"
         }else{
-            Write-Host "[scoopi]: Cache File Exist: $cache_file"
+            Write-Host "[scoopi]复制到缓存: $local_file -> $cache_file"
+            Copy-Item -Path $local_file -Destination $cache_file -Force
         }
     }
 
