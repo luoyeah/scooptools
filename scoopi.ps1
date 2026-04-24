@@ -6,8 +6,11 @@
     将安装包复制到 Scoop 缓存目录，然后使用 Scoop 安装。
     支持处理 file:// URLs，确保安装正常工作。
 
-.PARAMETER ManifestFile
+.PARAMETER File
     清单文件路径 (.json)，可以是相对路径或绝对路径
+
+.PARAMETER Test
+    测试模式
 
 .EXAMPLE
     .\scoopi.ps1 .\myapp.json
@@ -16,7 +19,9 @@
 
 param(
     [Parameter(Mandatory=$true, Position=0, HelpMessage="清单文件路径")]
-    [string]$ManifestFile
+    [string]$File,
+    [Parameter(Mandatory=$false, Position=1, HelpMessage="测试模式")]
+    [switch]$Test
 )
 # 启用严格模式确保变量在使用前被初始化
 # Set-StrictMode -Version Latest
@@ -248,7 +253,8 @@ function Main($ManifestFile){
             continue
         }
         
-        Write-Host "[scoopi]url解析成功: $url -> $local_file"
+        $local_file_exist = if(Test-Path $local_file){"+"}else{"-"}
+        Write-Host "[scoopi]url解析成功: $url -> [$local_file_exist]$local_file"
 
         if(Test-Path $cache_file){
             Write-Host "[scoopi]缓存文件已存在: $cache_file"
@@ -267,8 +273,11 @@ function Main($ManifestFile){
         Write-Host ""
     }
 
-    & scoop install -u $ManifestFile
 }
 
-Main $ManifestFile
+Main $File
+
+if(-not $Test){
+    & scoop install -u $File    
+}
 
