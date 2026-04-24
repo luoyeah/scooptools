@@ -252,6 +252,7 @@ function Main($ManifestFile){
 
         if(Test-Path $cache_file){
             Write-Host "[scoopi]缓存文件已存在: $cache_file"
+            Write-Host ""
             continue
         }
 
@@ -263,6 +264,7 @@ function Main($ManifestFile){
             Write-Host "[scoopi]复制到缓存: $local_file -> $cache_file"
             Copy-Item -Path $local_file -Destination $cache_file -Force
         }
+        Write-Host ""
     }
 
     & scoop install -u $ManifestFile
