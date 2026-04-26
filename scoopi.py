@@ -24,7 +24,7 @@ import urllib.parse
 from pathlib import Path
 
 import typer
-from typer import Option
+from typer import Argument, Option
 
 # Typer 应用实例
 app = typer.Typer(help="Scoop 安装预处理工具")
@@ -371,7 +371,7 @@ def copy_to_cache(local_file, cache_file):
 
 @app.command()
 def install(
-    file: str = Option(..., "--file", "-f", help="清单文件路径 (.json)", rich_help_panel="必需参数"),
+    file: str = Argument(..., help="清单文件路径 (.json)", rich_help_panel="必需参数"),
     force: bool = Option(False, "--force", help="强制重新安装"),
 ):
     """
@@ -401,18 +401,18 @@ def install(
                 copy_to_cache(local_file, cache_file)
                 typer.echo(f"[scoopi] Copied to cache")
 
-    cmd = ['scoop', 'install']
+    cmd = ['scoop', 'install', '-u']
     if force:
         cmd.append('-f')
     cmd.append(file)
 
     typer.echo(f"[scoopi] Running: {' '.join(cmd)}")
-    subprocess.run(cmd)
+    subprocess.run(cmd, shell=True)
 
 
 @app.command()
 def test(
-    file: str = Option(..., "--file", "-f", help="清单文件路径 (.json)", rich_help_panel="必需参数"),
+    file: str = Argument(..., help="清单文件路径 (.json)", rich_help_panel="必需参数"),
 ):
     """
     测试清单解析（dry run 模式）。
@@ -435,7 +435,7 @@ def test(
 
 @app.command()
 def copy(
-    file: str = Option(..., "--file", "-f", help="清单文件路径 (.json)", rich_help_panel="必需参数"),
+    file: str = Argument(..., help="清单文件路径 (.json)", rich_help_panel="必需参数"),
     force: bool = Option(False, "--force", "-w", help="覆盖已存在的缓存文件"),
 ):
     """
@@ -472,7 +472,57 @@ def copy(
         typer.echo(f"[scoopi] Copied: {local_file} -> {cache_file}")
 
 
+@app.command()
+def collect(
+    menafest_dir: str = Argument(..., help="清单文件夹"),
+    target_dir: str = Argument(..., help="目标文件夹路径"),
+):
+    """
+    从清单目录下所有 JSON 文件中收集 URL 指向的文件到目标文件夹。
+
+    执行流程：
+        1. 扫描当前目录下的所有 .json 文件
+        2. 解析每个 JSON 文件，提取 URL
+        3. 将 URL 指向的文件复制到目标文件夹
+        4. 如果本地文件不存在，尝试从缓存文件夹复制
+    """
+    target_dir = get_absolute_path(target_dir)
+    os.makedirs(target_dir, exist_ok=True)
+
+    json_files = list(Path(menafest_dir).glob('*.json'))
+    if not json_files:
+        typer.echo("[scoopi] No JSON files found in current directory", err=True)
+        raise typer.Exit(1)
+
+    typer.echo(f"[scoopi] Found {len(json_files)} JSON files")
+
+    collected = 0
+    for json_file in json_files:
+        result = process_manifest(str(json_file))
+
+        for i, url in enumerate(result['urls']):
+            local_file = result['local_files'][i]
+            cache_file = result['cache_files'][i]
+
+            src_file = None
+            if local_file and os.path.exists(local_file):
+                src_file = local_file
+                typer.echo(f"[scoopi] Found local: {local_file}")
+            elif os.path.exists(cache_file):
+                src_file = cache_file
+                typer.echo(f"[scoopi] Found in cache: {cache_file}")
+            else:
+                typer.echo(f"[scoopi] File not found: {url}", err=True)
+                continue
+
+            dest_file = os.path.join(target_dir, os.path.basename(src_file))
+            shutil.copy2(src_file, dest_file)
+            typer.echo(f"[scoopi] Copied: {os.path.basename(src_file)}")
+            collected += 1
+
+    typer.echo(f"[scoopi] Collected {collected} files to {target_dir}")
+
+
 if __name__ == '__main__':
-    # 启动前加载 Scoop 配置
     scoop_config = load_scoop_config()
     app()
